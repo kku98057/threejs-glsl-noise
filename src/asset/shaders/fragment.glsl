@@ -5,6 +5,11 @@ varying vec2 vScreenSpace;
 varying vec2 vUv;
 varying vec3 vPosition;
 varying vec3 vNormal;
+varying vec3 vViewDirection;
+
+uniform float progress;
+
+uniform sampler2D noise;
 //
 // GLSL textureless classic 3D noise "cnoise",
 // with an RSL-style periodic variant "pnoise".
@@ -216,6 +221,7 @@ vec3 curl_noise(vec3 p)
 vec3 fbm_vec3(vec3 p, float frequency, float offset)
 {
   return vec3(
+
     cnoise((p+vec3(offset))*frequency),
     cnoise((p+vec3(offset+20.0))*frequency),
     cnoise((p+vec3(offset-30.0))*frequency)
@@ -224,21 +230,42 @@ vec3 fbm_vec3(vec3 p, float frequency, float offset)
 void main(){    
     // dot 두점을 곱한다.
     float light = dot(vNormal,normalize(vec3(1.)));
+    // light += (smallnoise*2. -1.) * light;
+    // light = light*light*light;
+    
+      float fresnel =1. - dot(vNormal,- vViewDirection ); 
+      fresnel =fresnel*fresnel;
 
 
         //strokes
-    float stroke = cos((vScreenSpace.x - vScreenSpace.y)*500.);
+    float stroke = cos((vScreenSpace.x - vScreenSpace.y)*700.);
     float smallnoise = cnoise(500.*vec3(vScreenSpace,1.));
-    float bignoise = cnoise(5.*vec3(vScreenSpace,1.));
+    float bignoise = cnoise(5.*vec3(vScreenSpace,time/4.));
+   float texture = texture2D(noise,0.5*(vScreenSpace + 1.)).r;
 
-    stroke +=(smallnoise *2. - 1.)- (bignoise *2. - 1.);
-    light += (bignoise*2. -1.) * light;
+    stroke += (smallnoise *2. - 1.)- (bignoise *2. - 1.) ;
 
-    stroke = 1.- smoothstep(light-1.,light+1.,stroke);
+    stroke = 1. - smoothstep(1.*light-0.2,1.*light+0.2,stroke) -fresnel;
+    float stroke1 = 1. - smoothstep(2.*light-2.,2.*light+2.,stroke);
+
+    float temp = progress;
+    temp += (1.5*texture -1.) * 0.2;
+    float distanceFromCenter = length(vScreenSpace);
+    temp = smoothstep(temp - 0.0005,temp,distanceFromCenter); 
+
+
+
+
 
     // gl_FragColor = vec4(vScreenSpace,0.,1.);
     // gl_FragColor = vec4(vNormal,1.);
     // gl_FragColor = vec4(vec3(cnoise(100.* vec3(vScreenSpace,1.))),1.);
     // gl_FragColor = vec4(vec3(light),1.);
-    gl_FragColor = vec4(vec3(stroke),1.);
+    // gl_FragColor = vec4(vec3(stroke1),1.);
+    float finalLook = mix(stroke,stroke1,temp);
+    // gl_FragColor = vec4(vec3(finalLook),1.);
+    // gl_FragColor = vec4(vec3(distanceFromCenter),1.);
+    // gl_FragColor = vec4(vec3(progress),1.);
+    // gl_FragColor = vec4(vec3(temp),1.);
+    gl_FragColor = vec4(vec3(finalLook),1.);
 }

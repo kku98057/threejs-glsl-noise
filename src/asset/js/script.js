@@ -2,6 +2,9 @@ import * as THREE from "three";
 import fragment from "../shaders/fragment.glsl";
 import vertex from "../shaders/vertex.glsl";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+
+import * as dat from "dat.gui";
 
 // https://www.youtube.com/watch?v=_qJdpSr3HkM&t=139s
 
@@ -21,14 +24,23 @@ export default class App {
       0.1,
       1000
     );
-    this.camera.position.set(0, 0, 2);
+
+    this.camera.position.set(0, 0, 9);
     this.time = 0;
     this.scene.add(this.camera);
     new OrbitControls(this.camera, this.renderer.domElement);
     this.addMesh();
     this.setLight();
+    this.settings();
     this.setResize();
     this.render();
+  }
+  settings() {
+    this.settings = {
+      progress: 0,
+    };
+    this.gui = new dat.GUI();
+    this.gui.add(this.settings, "progress", 0, 1, 0.01);
   }
   setLight() {
     this.color = 0xffffff;
@@ -37,7 +49,7 @@ export default class App {
     this.scene.add(this.light);
   }
   addMesh() {
-    this.geo = new THREE.SphereGeometry(1, 30, 30);
+    this.geo = new THREE.SphereGeometry(3, 3, 32, 0, 1);
     this.material = new THREE.ShaderMaterial({
       fragmentShader: fragment,
       vertexShader: vertex,
@@ -48,12 +60,35 @@ export default class App {
           type: "f",
           value: 0,
         },
-        side: THREE.DoubleSide,
+        noise: {
+          type: "f",
+          value: new THREE.TextureLoader().load("./asset/img/perin.png"),
+        },
       },
+      side: THREE.DoubleSide,
     });
 
     this.mesh = new THREE.Mesh(this.geo, this.material);
+    this.mesh.position.z = 0.5;
+    this.mesh.position.y = -0.25;
     this.scene.add(this.mesh);
+
+    this.loader = new GLTFLoader().load(
+      "./asset/3DTexture/BoomBox.glb",
+      (glb) => {
+        let model = glb.scene.children[0];
+        let modelScale = 120;
+        model.scale.set(modelScale, modelScale, modelScale);
+        model.rotation.y = 3.2;
+        model.position.set(0, 0, 0);
+        this.scene.add(model);
+
+        model.material = this.material;
+        setInterval(() => {
+          model.rotation.y += 0.05;
+        }, 60);
+      }
+    );
   }
   setResize() {
     window.addEventListener("resize", this.resize.bind(this));
@@ -65,7 +100,10 @@ export default class App {
     this.camera.updateProjectionMatrix();
   }
   update() {
-    this.time += 0.1;
+    this.time += 0.01;
+    // this.mesh.rotation.x = this.time;
+    this.material.uniforms.progress.value = this.settings.progress;
+    this.mesh.rotation.y = -this.time * 5;
   }
   render() {
     this.renderer.render(this.scene, this.camera);
